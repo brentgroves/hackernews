@@ -1,6 +1,6 @@
 # GraphQL schema example
 #
-# https://gqlgen.com/getting-started/
+# hackernews schema
 
 type Link {
   id: ID!

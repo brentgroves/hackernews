@@ -64,6 +64,10 @@ Project Setup
 Create a directory for project and initialize go modules file:
 
 ```bash
+pushd .
+cd ~/src
+# create repo with only a readme
+git clone git@github.com:brentgroves/hackernews.git
 go mod init github.com/brentgroves/hackernews
 ```
 
@@ -86,6 +90,8 @@ import (
 )
 
 ```
+
+Gofmt is a tool that automatically formats Go source code.
 
 What does an underscore in front of an import statement mean?
 
@@ -220,7 +226,14 @@ func (r *queryResolver) Links(ctx context.Context) ([]*model.Link, error) {
 }
 ```
 
-now run the server with go run server.go and send this query in Graphiql:
+now run the server with go run server.go and send this query in Graphiql
+
+```bash
+pushd .
+cd ~/src/hackernews
+go run server.go
+
+```
 
 ```graphql
 query {
@@ -229,6 +242,139 @@ query {
     address,
     user{
       name
+    }
+  }
+}
+
+```
+
+## Mutations
+
+What Is A Mutation
+Simply mutations are just like queries but they can cause a data write, Technically Queries can be used to write data too however it’s not suggested to use it. So mutations are like queries, they have names, parameters and they can return data.
+
+## A Simple Mutation
+
+Let’s try to implement the createLink mutation, since we do not have a database set up yet(we’ll get it done in the next section) we just receive the link data and construct a link object and send it back for response!
+
+Open schema.resolvers.go and Look at CreateLink function:
+
+```go
+func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
+// This function receives a NewLink with type of input we defined NewLink structure in our schema.graphqls.
+
+```
+
+This function receives a NewLink with type of input we defined NewLink structure in our schema.graphqls.
+
+Try to Construct a Link object we defined in our schema.graphqls:
+
+```go
+func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
+ var link model.Link
+ var user model.User
+ link.Address = input.Address
+ link.Title = input.Title
+ user.Name = "test"
+ link.User = &user
+ return &link, nil
+}
+```
+
+now run server and use the mutation to create a new link:
+
+```graphql
+mutation {
+  createLink(input: {title: "new link", address:"http://address.org"}){
+    title,
+    user{
+      name
+    }
+    address
+  }
+}
+```
+
+and you will get:
+
+```graphql
+{
+  "data": {
+    "createLink": {
+      "title": "new link",
+      "user": {
+        "name": "test"
+      },
+      "address": "http://address.org"
+    }
+  }
+}
+```
+
+Nice now we know what are mutations and queries we can setup our database and make these implementations more practical.
+
+## Database
+
+Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
+
+Setup MySQL
+Create MySQL database
+Define our models and create migrations
+
+## Setup MySQL
+
+If you have docker you can run Mysql image from docker and use it.
+
+```bash
+
+docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=dbpass -e MYSQL_DATABASE=hackernews -d mysql:latest 
+
+# now run  and you should see our mysql image is running:
+
+docker ps
+
+CONTAINER ID        IMAGE                                                               COMMAND                  CREATED             STATUS              PORTS                  NAMES
+8fea71529bb2        mysql:latest                                                        "docker-entrypoint.s
+```
+
+## Create MySQL database
+
+You have already started mysql instance in the previous step. Now we will need to create our hackernews database in that instance. To create the database run these commands.
+
+```bash
+docker exec -it mysql bash
+
+# It will open the bash terminal inside mysql instance.
+
+# In the next step we will open mysql repl as the root user:
+
+mysql -u root -p
+
+# It will ask you for root password, enter dbpass and enter.
+
+# Now we are inside mysql repl. To create the database, run this command:
+
+CREATE DATABASE hackernews;
+ERROR 1007 (HY000): Can't create database 'hackernews'; database exists
+```
+
+## Next
+
+<https://www.howtographql.com/graphql-go/4-database/>
+
+## Execute **[Stored Procedure with GraphQL](https://stackoverflow.com/questions/73944424/execute-stored-procedure-with-graphql)**
+
+We have database with a lot of stored procedures. I need to implement GraphQL, but I can't find information about is it possible to Execute stored procedures with GraphQL.
+
+GraphQL has nothing to do with stored procedures. It is only a wrapper over your http requests.
+
+In your GraphQL resolvers, you can execute any code that needs to talk to your database.
+
+```graphql
+const resolvers = {
+  Query: {
+    executeInsertReportRequest() {  
+      return db.execute('select insert_report_request();');
     }
   }
 }
