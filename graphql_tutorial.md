@@ -84,6 +84,8 @@ go mod tidy
 
 package tools
 
+// Manage tool dependencies via go.mod.
+// https://pkg.go.dev/cmd/compile
 import (
         _ "github.com/99designs/gqlgen"
         _ "github.com/99designs/gqlgen/graphql/introspection"
@@ -108,7 +110,8 @@ Generating...
 
 Exec "go run ./server.go" to start GraphQL server
 go mod tidy
-go: downloading github.com/PuerkitoBio/goquery v1.8.1
+go: downlo//go:generate goyacc -o gopher.go -p parser gopher.y
+ading github.com/PuerkitoBio/goquery v1.8.1
 go: downloading golang.org/x/net v0.17.0
 go: downloading github.com/andybalholm/cascadia v1.3.1
 ```
@@ -132,9 +135,9 @@ Here is a description from gqlgen about the generated files:
 
 Now let’s start with defining schema we need for our API. We have two types Link and User each of them for representing Link and User to client, a links Query to return list of Links. an input for creating new links and mutation for creating link. we also need mutations to for auth system which includes Login, createUser, refreshToken(I’ll explain them later) then run the command below to regenerate graphql models.
 
-```graphql
 file: graph/schema.graphqls
 
+```graphql
 type Link {
   id: ID!
   title: String!
@@ -356,6 +359,63 @@ mysql -u root -p
 
 CREATE DATABASE hackernews;
 ERROR 1007 (HY000): Can't create database 'hackernews'; database exists
+```
+
+## Models and migrations
+
+We need to create migrations for our app so every time our app runs it creates tables it needs to work properly, we are going to use golang-migrate package. Create a folder structure for our database files in the project root directory:
+
+```bash
+go-graphql-hackernews
+--internal
+----pkg
+------db
+--------migrations
+----------mysql
+```
+
+Install go mysql driver and golang-migrate packages then create migrations:
+
+```bash
+go get github.com/golang-migrate/migrate/v4/cmd/migrate
+mkdir $GOPATH/bin/migrate
+go get -u github.com/go-sql-driver/mysql
+go build -tags 'mysql' -ldflags="-X main.Version=1.0.0" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/v4/cmd/migrate/
+cd internal/pkg/db/migrations/
+migrate create -ext sql -dir mysql -seq create_users_table
+migrate create -ext sql -dir mysql -seq create_links_table
+```
+
+migrate command will create two files for each migration ending with .up and .down; up is responsible for applying migration and down is responsible for reversing it. open 000001_create_users_table.up.sql and add table for our users:
+
+```sql
+CREATE TABLE IF NOT EXISTS Users(
+    ID INT NOT NULL UNIQUE AUTO_INCREMENT,
+    Username VARCHAR (127) NOT NULL UNIQUE,
+    Password VARCHAR (127) NOT NULL,
+    PRIMARY KEY (ID)
+)
+```
+
+in 000002_create_links_table.up.sql:
+
+```sql
+CREATE TABLE IF NOT EXISTS Links(
+    ID INT NOT NULL UNIQUE AUTO_INCREMENT,
+    Title VARCHAR (255) ,
+    Address VARCHAR (255) ,
+    UserID INT ,
+    FOREIGN KEY (UserID) REFERENCES Users(ID) ,
+    PRIMARY KEY (ID)
+)
+```
+
+We need one table for saving links and one table for saving users, Then we apply these to our database using migrate command. Run this command in your project root directory.
+
+```bash
+pushd .
+cd ~/src/hackernews
+migrate -database mysql://root:dbpass@/hackernews -path internal/pkg/db/migrations/mysql up
 ```
 
 ## Next
