@@ -68,6 +68,7 @@ pushd .
 cd ~/src
 # create repo with only a readme
 git clone git@github.com:brentgroves/hackernews.git
+cd ~/src/hackernews
 go mod init github.com/brentgroves/hackernews
 ```
 
@@ -320,9 +321,9 @@ Nice now we know what are mutations and queries we can setup our database and ma
 
 Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
 
-Setup MySQL
-Create MySQL database
-Define our models and create migrations
+- Setup MySQL
+- Create MySQL database
+- Define our models and create migrations
 
 ## Setup MySQL
 
@@ -366,18 +367,22 @@ ERROR 1007 (HY000): Can't create database 'hackernews'; database exists
 We need to create migrations for our app so every time our app runs it creates tables it needs to work properly, we are going to use golang-migrate package. Create a folder structure for our database files in the project root directory:
 
 ```bash
-go-graphql-hackernews
---internal
-----pkg
-------db
---------migrations
-----------mysql
+└─hackernews
+|
+└── internal
+│   └── pkg
+│       └── db
+│           └── migrations
+│               └── mysql
+│                   ├── 000001_create_users_table.down.sql
+│                   ├── 000001_create_users_table.up.sql
+│                   ├── 000002_create_links_table.down.sql
+│                   └── 000002_create_links_table.up.sql
 ```
 
 Install go mysql driver and golang-migrate packages then create migrations:
 
 ```bash
-go get github.com/golang-migrate/migrate/v4/cmd/migrate
 mkdir $GOPATH/bin/migrate
 go get -u github.com/go-sql-driver/mysql
 go build -tags 'mysql' -ldflags="-X main.Version=1.0.0" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/v4/cmd/migrate/
