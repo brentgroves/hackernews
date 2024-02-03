@@ -330,7 +330,13 @@ Before we jump into implementing GraphQL schema we need to setup database to sav
 If you have docker you can run Mysql image from docker and use it.
 
 ```bash
-
+# Connection from localhost or docker container
+# https://stackoverflow.com/questions/75704567/client-does-not-support-authentication-protocol-requested-by-server-error-in-bot
+mysql -u root -pdbpass -h 127.0.0.1 -P 3306 hackernews
+ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY 'dbpass';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%';
+FLUSH PRIVILEGES;
+# or
 docker run -p 3306:3306 --name mysql -e MYSQL_ROOT_PASSWORD=dbpass -e MYSQL_DATABASE=hackernews -d mysql:latest 
 
 # now run  and you should see our mysql image is running:
@@ -440,11 +446,63 @@ mysql -u root -p
 # Now we are inside mysql repl. To create the database, run this command:
 ```
 
+Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
+
+Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
+
+```golang
+// internal/pkg/db/mysql/mysql.go:
+
+package database
+
+import (
+ "database/sql"
+ _ "github.com/go-sql-driver/mysql"
+ "github.com/golang-migrate/migrate"
+ "github.com/golang-migrate/migrate/database/mysql"
+ _ "github.com/golang-migrate/migrate/source/file"
+ "log"
+)
+
+var Db *sql.DB
+
+func InitDB() {
+ // Use root:dbpass@tcp(172.17.0.2)/hackernews, if you're using Windows.
+ db, err := sql.Open("mysql", "root:dbpass@tcp(localhost)/hackernews")
+ if err != nil {
+  log.Panic(err)
+ }
+
+ if err = db.Ping(); err != nil {
+   log.Panic(err)
+ }
+ Db = db
+}
+
+func CloseDB() error {
+ return Db.Close()
+}
+
+func Migrate() {
+ if err := Db.Ping(); err != nil {
+  log.Fatal(err)
+ }
+ driver, _ := mysql.WithInstance(Db, &mysql.Config{})
+ m, _ := migrate.NewWithDatabaseInstance(
+  "file://internal/pkg/db/migrations/mysql",
+  "mysql",
+  driver,
+ )
+ if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+  log.Fatal(err)
+ }
+
+}
+```
+
 ## Next
 
 <https://www.howtographql.com/graphql-go/4-database/>
-
-Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
 
 ## Execute **[Stored Procedure with GraphQL](https://stackoverflow.com/questions/73944424/execute-stored-procedure-with-graphql)**
 
