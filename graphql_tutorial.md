@@ -383,9 +383,12 @@ We need to create migrations for our app so every time our app runs it creates t
 Install go mysql driver and golang-migrate packages then create migrations:
 
 ```bash
-mkdir $GOPATH/bin/migrate
-go get -u github.com/go-sql-driver/mysql
-go build -tags 'mysql' -ldflags="-X main.Version=1.0.0" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/v4/cmd/migrate/
+pushd .
+cd ~/src/hackernews
+go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.17.0
+go install -tags 'mysql' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+ls $HOME/go/bin/
+dlv  go1.20  gomodifytags  go-outline  goplay  gopls  gotests  hello  impl  migrate  runner  staticcheck
 cd internal/pkg/db/migrations/
 migrate create -ext sql -dir mysql -seq create_users_table
 migrate create -ext sql -dir mysql -seq create_links_table
@@ -420,12 +423,28 @@ We need one table for saving links and one table for saving users, Then we apply
 ```bash
 pushd .
 cd ~/src/hackernews
+migrate -database mysql://root:dbpass@/hackernews -path internal/pkg/db/migrations/mysql drop
 migrate -database mysql://root:dbpass@/hackernews -path internal/pkg/db/migrations/mysql up
+```
+
+```bash
+# if container is not started
+docker container start 9769fb1ed027
+docker exec -it mysql bash
+# It will open the bash terminal inside mysql instance.
+# In the next step we will open mysql repl as the root user:
+mysql -u root -p
+
+# It will ask you for root password, enter dbpass and enter.
+
+# Now we are inside mysql repl. To create the database, run this command:
 ```
 
 ## Next
 
 <https://www.howtographql.com/graphql-go/4-database/>
+
+Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
 
 ## Execute **[Stored Procedure with GraphQL](https://stackoverflow.com/questions/73944424/execute-stored-procedure-with-graphql)**
 
